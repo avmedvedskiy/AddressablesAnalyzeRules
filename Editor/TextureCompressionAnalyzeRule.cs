@@ -104,7 +104,6 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
             if (assetImporter is TextureImporter textureImporter)
             {
                 var texture = AssetDatabase.LoadAssetAtPath<Texture>(assetPath);
-                Debug.Log(assetPath);
                 if (!IsPow2(texture) && !HasCompression(textureImporter) && !_atlasFinder.HasAtlas(assetPath, out _))
                 {
                     _resultData.Add(new TextureAssetData()
@@ -120,7 +119,6 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
         private bool HasCompression(TextureImporter textureImporter)
         {
             var settings = textureImporter.GetPlatformTextureSettings(GetCurrentPlatformName());
-            Debug.Log($" {settings.format.ToString()}, has astc = {settings.format.ToString().Contains("ASTC")}, {_defaultCompression}");
             return settings.overridden && settings.format != TextureImporterFormat.Automatic
                 ? settings.format.ToString().Contains("ASTC")
                 : _defaultCompression.Contains("ASTC");
