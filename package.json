@@ -1,6 +1,7 @@
 {
   "name": "com.avmedvedskiy.addressablesanalyzerules",
   "version": "1.0.2",
+  "author": "avmedvedskiy",
   "displayName": "Addressables Analyze Rules",
   "description": "Addressables Analyze Rules",
   "unity": "2022.3"
