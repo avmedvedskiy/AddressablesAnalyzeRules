@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEditor.AddressableAssets.Build.DataBuilders;
 using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.Build.Pipeline;
 using UnityEngine;
+using Object = System.Object;
 
 namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
 {
@@ -20,6 +22,7 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
         private readonly List<AnalyzeResult> _ruleResults = new();
         private readonly AtlasFinder _atlasFinder = new();
         private readonly List<TextureAssetData> _resultData = new();
+        private string _defaultCompression;
 
         public override bool CanFix => false;
         public override string ruleName => "Check textures without compression";
@@ -39,6 +42,7 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
 
             if (AllBundleInputDefs.Count > 0)
             {
+                _defaultCompression = GetDefaultTextureCompressionFormat();
                 var context = GetBuildContext(settings);
                 ReturnCode exitCode = RefreshBuild(context);
                 if (exitCode < ReturnCode.Success)
@@ -100,6 +104,7 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
             if (assetImporter is TextureImporter textureImporter)
             {
                 var texture = AssetDatabase.LoadAssetAtPath<Texture>(assetPath);
+                Debug.Log(assetPath);
                 if (!IsPow2(texture) && !HasCompression(textureImporter) && !_atlasFinder.HasAtlas(assetPath, out _))
                 {
                     _resultData.Add(new TextureAssetData()
@@ -115,8 +120,34 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
         private bool HasCompression(TextureImporter textureImporter)
         {
             var settings = textureImporter.GetPlatformTextureSettings(GetCurrentPlatformName());
-            return settings.overridden;
+            Debug.Log($" {settings.format.ToString()}, has astc = {settings.format.ToString().Contains("ASTC")}, {_defaultCompression}");
+            return settings.overridden && settings.format != TextureImporterFormat.Automatic
+                ? settings.format.ToString().Contains("ASTC")
+                : _defaultCompression.Contains("ASTC");
         }
+
+        private string GetDefaultTextureCompressionFormat()
+        {
+            MethodInfo getTextureCompressionMethod =
+                typeof(PlayerSettings).GetMethod("GetDefaultTextureCompressionFormat",
+                    BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+            return getTextureCompressionMethod?.Invoke(null, new object[] { GetCurrentBuildTargetGroup() }).ToString();
+        }
+
+        private BuildTargetGroup GetCurrentBuildTargetGroup() =>
+            EditorUserBuildSettings.activeBuildTarget switch
+            {
+                BuildTarget.Android => BuildTargetGroup.Android,
+                BuildTarget.iOS => BuildTargetGroup.iOS,
+                BuildTarget.WebGL => BuildTargetGroup.WebGL,
+                BuildTarget.StandaloneWindows or
+                    BuildTarget.StandaloneWindows64 or
+                    BuildTarget.StandaloneLinux64 or
+                    BuildTarget.StandaloneOSX => BuildTargetGroup.Standalone,
+                _ => throw new Exception("Not Found Current Platform")
+            };
+
 
         private string GetCurrentPlatformName() =>
             EditorUserBuildSettings.activeBuildTarget switch
