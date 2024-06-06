@@ -18,18 +18,21 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
             {
                 _atlasesGUIDs ??= AssetDatabase.FindAssets("t:spriteatlas");
                 var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
-                for (int i = 0; i < _atlasesGUIDs.Length; i++)
+                if (sprite != null)
                 {
-                    atlasGUID = _atlasesGUIDs[i];
-                    if (!_loadedAtlases.TryGetValue(atlasGUID, out var atlas))
+                    for (int i = 0; i < _atlasesGUIDs.Length; i++)
                     {
-                        atlas = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(AssetDatabase.GUIDToAssetPath(atlasGUID));
-                        _loadedAtlases.Add(atlasGUID, atlas);
-                    }
-                
+                        atlasGUID = _atlasesGUIDs[i];
+                        if (!_loadedAtlases.TryGetValue(atlasGUID, out var atlas))
+                        {
+                            atlas = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(AssetDatabase.GUIDToAssetPath(atlasGUID));
+                            _loadedAtlases.Add(atlasGUID, atlas);
+                        }
 
-                    if (atlas != null && atlas.CanBindTo(sprite))
-                        return true;
+
+                        if (atlas != null && atlas.CanBindTo(sprite))
+                            return true;
+                    }
                 }
             }
             atlasGUID = null;
