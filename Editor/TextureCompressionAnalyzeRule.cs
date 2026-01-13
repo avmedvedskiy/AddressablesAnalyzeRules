@@ -115,13 +115,77 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
                 }
             }
         }
+        
 
         private bool HasCompression(TextureImporter textureImporter)
         {
             var settings = textureImporter.GetPlatformTextureSettings(GetCurrentPlatformName());
             return settings.overridden && settings.format != TextureImporterFormat.Automatic
-                ? settings.format.ToString().Contains("ASTC")
+                ? GetCompressionFamily(settings.format) 
+                    is TextureCompressionFamily.ASTC 
+                    or TextureCompressionFamily.Uncompressed
                 : _defaultCompression.Contains("ASTC");
+        }
+        
+        public TextureCompressionFamily GetCompressionFamily(TextureImporterFormat f)
+        {
+            // Automatic / legacy “automatic*”
+            if ((int)f < 0)
+                return TextureCompressionFamily.Automatic;
+
+            switch (f)
+            {
+                // --- DXT / BC family ---
+                case TextureImporterFormat.DXT1:
+                case TextureImporterFormat.DXT5:
+                case TextureImporterFormat.DXT1Crunched:
+                case TextureImporterFormat.DXT5Crunched:
+                case TextureImporterFormat.BC4:
+                case TextureImporterFormat.BC5:
+                case TextureImporterFormat.BC6H:
+                case TextureImporterFormat.BC7:
+                    return TextureCompressionFamily.DXT_BC;
+
+                // --- PVRTC ---
+                case TextureImporterFormat.PVRTC_RGB2:
+                case TextureImporterFormat.PVRTC_RGBA2:
+                case TextureImporterFormat.PVRTC_RGB4:
+                case TextureImporterFormat.PVRTC_RGBA4:
+                    return TextureCompressionFamily.PVRTC;
+
+                // --- ETC / ETC2 / EAC (и их crunched) ---
+                case TextureImporterFormat.ETC_RGB4:
+                case TextureImporterFormat.ETC_RGB4Crunched:
+                case TextureImporterFormat.ETC2_RGB4:
+                case TextureImporterFormat.ETC2_RGB4_PUNCHTHROUGH_ALPHA:
+                case TextureImporterFormat.ETC2_RGBA8:
+                case TextureImporterFormat.ETC2_RGBA8Crunched:
+                case TextureImporterFormat.EAC_R:
+                case TextureImporterFormat.EAC_R_SIGNED:
+                case TextureImporterFormat.EAC_RG:
+                case TextureImporterFormat.EAC_RG_SIGNED:
+                    return TextureCompressionFamily.ETC_EAC;
+
+                // --- ASTC LDR ---
+                case TextureImporterFormat.ASTC_4x4:
+                case TextureImporterFormat.ASTC_5x5:
+                case TextureImporterFormat.ASTC_6x6:
+                case TextureImporterFormat.ASTC_8x8:
+                case TextureImporterFormat.ASTC_10x10:
+                case TextureImporterFormat.ASTC_12x12:
+                // --- ASTC HDR ---
+                case TextureImporterFormat.ASTC_HDR_4x4:
+                case TextureImporterFormat.ASTC_HDR_5x5:
+                case TextureImporterFormat.ASTC_HDR_6x6:
+                case TextureImporterFormat.ASTC_HDR_8x8:
+                case TextureImporterFormat.ASTC_HDR_10x10:
+                case TextureImporterFormat.ASTC_HDR_12x12:
+                    return TextureCompressionFamily.ASTC;
+
+                // --- Everything else is not “a compression family” ---
+                default:
+                    return TextureCompressionFamily.Uncompressed;
+            }
         }
 
         private string GetDefaultTextureCompressionFormat()
@@ -185,6 +249,25 @@ namespace UnityEditor.AddressableAssets.Build.AnalyzeRules
                     severity = MessageType.Warning
                 });
             }
+        }
+        
+        public enum TextureCompressionFamily
+        {
+            Unknown = 0,
+
+            // Not actually compressed (raw / packed / float / integer formats)
+            Uncompressed,
+
+            // Block compression families (desktop / modern)
+            DXT_BC,     // DXT1/DXT5 + BC4/5/6H/7
+
+            // Mobile families
+            ETC_EAC,    // ETC, ETC2, EAC (including crunched variants)
+            PVRTC,      // PVRTC RGB/RGBA 2/4bpp
+            ASTC,       // ASTC LDR (all block sizes)
+
+            // Unity “Automatic*”
+            Automatic,
         }
 
         [InitializeOnLoad]
